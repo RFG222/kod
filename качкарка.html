@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <title>Rat Security System</title>
+    <style>
+        :root {
+            --rat-dark: #1a1a1a;
+            --cheese-yellow: #ffcc00;
+            --rat-grey: #333;
+            --error-red: #ff4444;
+        }
+
+        body {
+            background-color: var(--rat-dark);
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100dvh;
+            margin: 0;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+
+        .container {
+            text-align: center;
+            background: #222;
+            padding: 30px 25px;
+            border-radius: 24px;
+            border: 2px solid var(--cheese-yellow);
+            box-shadow: 0 0 25px rgba(255, 204, 0, 0.15);
+            width: 90%;
+            max-width: 380px;
+            margin-bottom: env(safe-area-inset-bottom);
+        }
+
+        h2 {
+            font-size: 20px;
+            margin: 0 0 20px 0;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+        }
+
+        #display {
+            width: 100%;
+            height: 75px;
+            background: #000;
+            border: 1px solid var(--rat-grey);
+            margin-bottom: 25px;
+            font-size: 32px;
+            line-height: 75px;
+            letter-spacing: 10px;
+            color: var(--cheese-yellow);
+            border-radius: 14px;
+            box-sizing: border-box;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            height: 75px;
+            background: var(--rat-grey);
+            border: none;
+            color: white;
+            font-size: 26px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:active {
+            background: var(--cheese-yellow);
+            color: black;
+            transform: scale(0.92);
+        }
+
+        .btn-enter {
+            grid-column: span 2;
+            background: var(--cheese-yellow);
+            color: black;
+            font-weight: bold;
+        }
+
+        .btn-clear {
+            background: #444;
+        }
+
+        /* Оверлей для фото */
+        #photo-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100dvh;
+            background: rgba(0,0,0,0.98);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 20px;
+            box-sizing: border-box;
+        }
+
+        #photo-overlay img {
+            max-width: 100%;
+            max-height: 65vh;
+            border: 3px solid var(--cheese-yellow);
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        #photo-caption {
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            margin: 25px 0;
+            line-height: 1.5;
+            max-width: 90%;
+        }
+
+        .close-btn {
+            padding: 15px 45px;
+            background: var(--cheese-yellow);
+            color: black;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        /* Анимация тряски при ошибке */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+            100% { transform: translateX(0); }
+        }
+        .shake-anim { animation: shake 0.2s ease-in-out; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-ui">
+    <h2 id="status">RAT_OS: ДОСТУП ОГРАНИЧЕН</h2>
+    <div id="display"></div>
+    <div class="numpad">
+        <button onclick="addNumber(1)">1</button>
+        <button onclick="addNumber(2)">2</button>
+        <button onclick="addNumber(3)">3</button>
+        <button onclick="addNumber(4)">4</button>
+        <button onclick="addNumber(5)">5</button>
+        <button onclick="addNumber(6)">6</button>
+        <button onclick="addNumber(7)">7</button>
+        <button onclick="addNumber(8)">8</button>
+        <button onclick="addNumber(9)">9</button>
+        <button class="btn-clear" onclick="clearDisplay()">C</button>
+        <button onclick="addNumber(0)">0</button>
+        <button class="btn-enter" onclick="checkCode()">ENTER</button>
+    </div>
+</div>
+
+<div id="photo-overlay">
+    <img id="result-photo" src="" alt="Подсказка">
+    <p id="photo-caption"></p>
+    <button class="close-btn" onclick="closePhoto()">ЗАКРЫТЬ</button>
+</div>
+
+<script>
+    let currentInput = "";
+    
+    // База данных из твоего плана записок
+    const db = {
+        "64545": { 
+            img: "photo1.jpg", 
+            text: "Ты просто лучшая!!! Первое препятствие пройдено." 
+        },
+        "54564": { 
+            img: "photo2.jpg", 
+            text: "Лев! Ты на правильном пути, двигаемся дальше." 
+        },
+        "64455": { 
+            img: "final.jpg", 
+            text: "Ай тигр! Ну а теперь, ты узнаешь, что же все это время скрывается за этой страшной дверью..." 
+        }
+    };
+
+    // Функция тактильной отдачи (вибрации)
+    function triggerHaptic(type = 'light') {
+        if (!navigator.vibrate) return;
+        
+        switch(type) {
+            case 'light': navigator.vibrate(15); break;
+            case 'error': navigator.vibrate([60, 40, 60]); break;
+            case 'success': navigator.vibrate([100, 50, 150]); break;
+        }
+    }
+
+    function addNumber(num) {
+        if (currentInput.length < 6) {
+            triggerHaptic('light');
+            currentInput += num;
+            updateDisplay();
+        }
+    }
+
+    function clearDisplay() {
+        triggerHaptic('light');
+        currentInput = "";
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        document.getElementById('display').innerText = currentInput;
+    }
+
+    function checkCode() {
+        if (db[currentInput]) {
+            triggerHaptic('success');
+            showPhoto(db[currentInput].img, db[currentInput].text);
+            clearDisplay();
+        } else {
+            triggerHaptic('error');
+            const statusEl = document.getElementById('status');
+            const ui = document.getElementById('main-ui');
+            
+            statusEl.innerText = "ОШИБКА ДОСТУПА";
+            statusEl.style.color = "var(--error-red)";
+            ui.classList.add('shake-anim');
+
+            setTimeout(() => {
+                statusEl.innerText = "RAT_OS: ДОСТУП ОГРАНИЧЕН";
+                statusEl.style.color = "white";
+                ui.classList.remove('shake-anim');
+            }, 1000);
+            clearDisplay();
+        }
+    }
+
+    function showPhoto(src, text) {
+        const overlay = document.getElementById('photo-overlay');
+        document.getElementById('result-photo').src = src;
+        document.getElementById('photo-caption').innerText = text;
+        overlay.style.display = 'flex';
+    }
+
+    function closePhoto() {
+        triggerHaptic('light');
+        document.getElementById('photo-overlay').style.display = 'none';
+    }
+
+    // Блокировка системных жестов Safari
+    document.addEventListener('touchmove', (e) => {
+        if (e.scale !== 1) e.preventDefault();
+    }, { passive: false });
+</script>
+
+</body>
+</html>
